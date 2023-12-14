@@ -1,0 +1,307 @@
+import logging
+import os
+
+logger = logging.getLogger(__name__)
+
+import numpy as np
+import torch
+import torchaudio
+import faiss
+from fairseq import checkpoint_utils
+
+from .infer_pack.models import (
+    SynthesizerTrnMs256NSFsid,
+    SynthesizerTrnMs256NSFsid_nono,
+    SynthesizerTrnMs768NSFsid,
+    SynthesizerTrnMs768NSFsid_nono,
+)
+from .pipeline import Pipeline
+from .configs.config import Config
+
+_cpu=torch.device('cpu')
+_gpu=torch.device('cuda:0')
+_devgp=dev=_gpu if torch.cuda.is_available() else _cpu
+
+
+def load_hubert(config):
+    models, _, _ = checkpoint_utils.load_model_ensemble_and_task(
+        ["assets/hubert/hubert_base.pt"],
+        suffix="",
+    )
+    hubert_model = models[0]
+    hubert_model = hubert_model.to(config.device)
+    if config.is_half:
+        hubert_model = hubert_model.half()
+    else:
+        hubert_model = hubert_model.float()
+    return hubert_model.eval()
+
+
+class _ResampleCache(dict):
+
+
+    def __getitem__(self, item):
+        if item not in self:
+            self[item]=torchaudio.transforms.Resample(*item,lowpass_filter_width=32).to(_devgp,non_blocking=True)
+        return super().__getitem__(item)
+
+    def resample(self,fromto:tuple,audio:torch.Tensor,deviceto:str=_devgp):
+        if fromto[0]==fromto[1]:
+            return audio.to(deviceto,non_blocking=True)
+        return self[fromto](audio).to(deviceto,non_blocking=True)
+
+
+ResampleCache=_ResampleCache()
+
+
+class RVC:
+
+    #bootleg singletons
+    _hubert_model=None
+    _f0_predictor=None
+    _pipeline=None
+    _LOUD16K=torchaudio.transforms.Loudness(16000).to(_devgp,non_blocking=True) #going to assume these are small enough kernels to be neglible memory hogs.
+    _LOUDOUTPUT=torchaudio.transforms.Loudness(int(os.getenv('RVC_OUTPUTFREQ'))).to(_devgp,non_blocking=True)
+    MATCH_ORIGINAL=1
+    NO_CHANGE=2
+
+
+    def __init__(self, model:str,index:str=None, config=None,_outp_freq=44100):
+        """Load up the specific RVC model, and initializes generic models as singletons. call rvc.run(audio) to run the model."""
+        self.n_spk = None
+        self.tgt_sr = None
+        self.net_g = None
+        self.cpt = None
+        self.version = None
+        self.if_f0 = None
+        self.version = None
+        self.output_freq=_outp_freq
+
+
+        self.config = Config() if config is None else config
+        #I want to know if model is a direct and absolute reference to a .pth file if yes then override MODELDIR and that becomes self.model_path
+        #if no to absolute then join MODELDIR with model.
+        #then if no to .pth then check is self.model_path a dir, if not then add .pth file, if it is a dir then os.listdir select first .pth in the dir. join with self.model_path and finish.
+        #next within the is dir part of self.model_path is dir, if index is None then index = first index found in this dir, else it's = fpth.replace .pth with .index.
+        misab,mispath=os.path.isabs(model), len(model)> 4 and model[-4:] is '.pth'
+        self.model_path=model
+        _pid=None
+        if not misab:
+            self.model_path=os.path.join(os.getenv("RVC_MODELDIR"),model)
+        if not mispath:
+            if os.path.isdir(self.model_path):
+                tl=os.listdir(self.model_path)
+                fpth = next((item for item in tl if len(item)> 4 and item[-4:] is '.pth'), None)
+                self.model_path=os.path.join(self.model_path,fpth) if fpth is not None else self.model_path+'.pth'
+                _pid=next((item for item in tl if len(item)> 6 and item[-6:] is '.index'), None)
+            else:
+                self.model_path+='.pth'
+        self.index_path=index
+        index = index if index is not None else _pid if _pid is not None else os.path.basename(self.model_path).replace('.pth','.index')
+
+        self.index_path=index
+        iisab, iisidx,nindx = os.path.isabs(index), len(index) > 6 and index[-6:] is '.index',os.getenv('RVC_INDEXDIR',None) is None
+        if not iisab:
+            self.index_path=os.path.join(os.getenv('RVC_INDEXDIR', os.getenv("RVC_MODELDIR")) if self.index_path is not None else os.path.dirname(self.model_path),index)
+        if not iisidx:
+            if os.path.isdir(self.index_path):
+                tl = os.listdir(self.index_path)
+                fpth = next((item for item in tl if len(item) > 6 and item[-6:] is '.index'), None)
+                self.model_path = os.path.join(self.model_path, fpth) if fpth is not None else self.model_path + '.index'
+            else:
+                self.index_path += '.index'
+        self._load()
+
+    @property
+    def hubert_model(self):
+        if RVC._hubert_model is None:
+            RVC._hubert_model=load_hubert(self.config)
+        return RVC._hubert_model
+
+    @property
+    def pipeline(self):
+        if RVC._pipeline is None:
+            RVC._pipeline=Pipeline(self.tgt_sr, self.config)
+        elif RVC._pipeline.sr != self.tgt_sr:
+            RVC._pipeline.t_pad_tgt=self.tgt_sr*self._pipeline.x_pad #this should be the only change necessary when an RVC has a different sr, no need to refresh pipeline init. This does mean execution has to be sequential, so change if problem somehow.
+        return RVC._pipeline
+
+
+    @classmethod
+    def free_generic_memory(cls):
+        del cls._hubert_model
+        cls._hubert_model=None
+        del cls._pipeline
+        cls._pipeline=None
+        ResampleCache.clear()
+
+
+    # def __del__(self):
+    #     logger.info("Get sid: " + sid)
+    #
+    #     to_return_protect0 = {
+    #         "visible": self.if_f0 != 0,
+    #         "value": to_return_protect[0]
+    #         if self.if_f0 != 0 and to_return_protect
+    #         else 0.5,
+    #         "__type__": "update",
+    #     }
+    #     to_return_protect1 = {
+    #         "visible": self.if_f0 != 0,
+    #         "value": to_return_protect[1]
+    #         if self.if_f0 != 0 and to_return_protect
+    #         else 0.33,
+    #         "__type__": "update",
+    #     }
+    #
+    #     # move all of this to a __delete__
+    #     if sid == "" or sid == []:
+    #         if self.hubert_model is not None:  # 考虑到轮询, 需要加个判断看是否 sid 是由有模型切换到无模型的
+    #             logger.info("Clean model cache")
+    #             del (self.net_g, self.n_spk, self.hubert_model, self.tgt_sr)  # ,cpt
+    #             self.hubert_model = (
+    #                 self.net_g
+    #             ) = self.n_spk = self.hubert_model = self.tgt_sr = None
+    #             if torch.cuda.is_available():
+    #                 torch.cuda.empty_cache()
+    #             ###楼下不这么折腾清理不干净
+    #             self.if_f0 = self.cpt.get("f0", 1)
+    #             self.version = self.cpt.get("version", "v1")
+    #             if self.version == "v1":
+    #                 if self.if_f0 == 1:
+    #                     self.net_g = SynthesizerTrnMs256NSFsid(
+    #                         *self.cpt["config"], is_half=self.config.is_half
+    #                     )
+    #                 else:
+    #                     self.net_g = SynthesizerTrnMs256NSFsid_nono(*self.cpt["config"])
+    #             elif self.version == "v2":
+    #                 if self.if_f0 == 1:
+    #                     self.net_g = SynthesizerTrnMs768NSFsid(
+    #                         *self.cpt["config"], is_half=self.config.is_half
+    #                     )
+    #                 else:
+    #                     self.net_g = SynthesizerTrnMs768NSFsid_nono(*self.cpt["config"])
+    #             del self.net_g, self.cpt
+    #             if torch.cuda.is_available():
+    #                 torch.cuda.empty_cache()
+    #         return (
+    #             {"visible": False, "__type__": "update"},
+    #             {
+    #                 "visible": True,
+    #                 "value": to_return_protect0,
+    #                 "__type__": "update",
+    #             },
+    #             {
+    #                 "visible": True,
+    #                 "value": to_return_protect1,
+    #                 "__type__": "update",
+    #             },
+    #             "",
+    #             "",
+    #         )
+    #     del super #Hmm
+    #     del self
+
+
+
+    def _load(self, model_path=None, index_path=None):
+        model_path,index_path=self.model_path if model_path is None else model_path, self.index_path if index_path is None else index_path
+        logger.info(f"Loading: {model_path}")
+
+        self.cpt = torch.load(model_path, map_location="cpu")
+        self.tgt_sr = self.cpt["config"][-1]
+        self.cpt["config"][-3] = self.cpt["weight"]["emb_g.weight"].shape[0]  # n_spk
+        self.if_f0 = self.cpt.get("f0", 1)
+        self.version = self.cpt.get("version", "v1")
+
+        synthesizer_class = {
+            ("v1", 1): SynthesizerTrnMs256NSFsid,
+            ("v1", 0): SynthesizerTrnMs256NSFsid_nono,
+            ("v2", 1): SynthesizerTrnMs768NSFsid,
+            ("v2", 0): SynthesizerTrnMs768NSFsid_nono,
+        }
+
+        self.model = synthesizer_class.get(
+            (self.version, self.if_f0), SynthesizerTrnMs256NSFsid
+        )(*self.cpt["config"], is_half=self.config.is_half)
+
+        del self.model.enc_q
+
+        self.model.load_state_dict(self.cpt["weight"], strict=False)
+        self.model.eval().to(self.config.device)
+        if self.config.is_half:
+            self.model = self.model.half()
+        else:
+            self.model = self.model.float()
+
+        logger.info("Selecting index: " + index_path)
+        mindex = faiss.read_index(index_path)
+        big_npy = mindex.reconstruct_n(0, mindex.ntotal)
+        self.index=(mindex, big_npy)
+        #also add a torch transforms resampler here or none if tgt_sr == output rate.
+
+        # return (
+        #     (
+        #         {"visible": True, "maximum": n_spk, "__type__": "update"},
+        #         to_return_protect0,
+        #         to_return_protect1,
+        #         index,
+        #         index,
+        #     )
+        #     if to_return_protect
+        #     else {"visible": True, "maximum": n_spk, "__type__": "update"}
+        # )
+
+    def run(
+        self,
+        audio:str|torch.Tensor,
+        f0_up_key=0.,#12 semitones per octave
+        f0_method='rmvpe',
+        index_rate=.7,
+        filter_radius=3,
+        protect=.5,
+        output_device=None,
+        output_volume=1,#RVC.MATCH_ORIGINAL
+        f0_spec:str|np.ndarray|None = None
+    ):
+
+        if isinstance(audio,str):
+            audio,freq = torchaudio.load(audio).to(self.config.device,non_blocking=True)
+            am=audio.abs().max()
+            if am>2.:
+                audio/=am
+            audio=ResampleCache.resample((freq,16000),audio,self.config.device)
+        aif=audio.__dict__.get('frequency',None)
+        if aif is not None:
+            audio=audio.to(self.config.device,non_blocking=True)
+            audio=ResampleCache.resample((aif,16000),audio,self.config.device)
+        #else assume audio is already 16k
+
+        f0_up_key = int(f0_up_key)
+        times = [0, 0, 0]
+
+        audio_opt = self.pipeline.pipeline(
+            self.hubert_model,
+            self.model,
+            0, #seems irrelevant to the output but not sure, infer_cli.py from the main repo uses 0
+            audio,
+            times,
+            f0_up_key,
+            f0_method,
+            self.index,
+            index_rate,
+            self.if_f0,
+            filter_radius,
+            self.version,
+            protect,
+            f0_spec
+        )
+        if output_volume is RVC.MATCH_ORIGINAL:
+            lufsout=self._LOUDOUTPUT(audio_opt)
+            lufsorig=self._LOUD16K(audio)
+            audio_opt *= 10 ** ((lufsorig - lufsout) / 20)
+        elif output_volume is not RVC.NO_CHANGE: #then it's a negative float lufs target
+            lufsout = self._LOUDOUTPUT(audio_opt)
+            audio_opt *= 10 ** ((output_volume-lufsout) / 20)
+        return audio_opt.to(output_device,non_blocking=True) if output_device is not None else audio_opt.to(self.config.device,non_blocking=True)
+
