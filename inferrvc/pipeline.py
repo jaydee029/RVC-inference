@@ -17,6 +17,7 @@ import torch
 import torch.nn.functional as F
 import torchcrepe
 from scipy import signal
+from huggingface_hub import hf_hub_download
 
 
 now_dir = os.getcwd()
@@ -120,10 +121,10 @@ class Pipeline(object):
                 from .rmvpe import RMVPE
 
                 logger.info(
-                    "Loading rmvpe model,%s" % "%s/rmvpe.pt" % os.environ["rmvpe_root"]
+                    "Loading rmvpe model,%s" % hf_hub_download('lj1995/VoiceConversionWebUI', 'rmvpe.pt'),
                 )
                 self.model_rmvpe = RMVPE(
-                    "%s/rmvpe.pt" % os.environ["rmvpe_root"],
+                    hf_hub_download('lj1995/VoiceConversionWebUI', 'rmvpe.pt'),
                     is_half=self.is_half,
                     device=self.device,
                 )

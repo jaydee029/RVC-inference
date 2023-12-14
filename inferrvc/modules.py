@@ -17,15 +17,25 @@ from .infer_pack.models import (
 )
 from .pipeline import Pipeline
 from .configs.config import Config
+from huggingface_hub import hf_hub_download
 
 _cpu=torch.device('cpu')
 _gpu=torch.device('cuda:0')
 _devgp=dev=_gpu if torch.cuda.is_available() else _cpu
 
 
+def download_models():
+    hf_hub_download('lj1995/VoiceConversionWebUI', 'hubert_base.pt')
+    hf_hub_download('lj1995/VoiceConversionWebUI', 'rmvpe.pt')
+
+
+
+
+
 def load_hubert(config):
+    fl=hf_hub_download('lj1995/VoiceConversionWebUI', 'hubert_base.pt')
     models, _, _ = checkpoint_utils.load_model_ensemble_and_task(
-        ["assets/hubert/hubert_base.pt"],
+        [fl],
         suffix="",
     )
     hubert_model = models[0]
@@ -74,7 +84,7 @@ class RVC:
         self.cpt = None
         self.version = None
         self.if_f0 = None
-        self.version = None
+        self.index = None
         self.output_freq=_outp_freq
 
 
@@ -136,6 +146,7 @@ class RVC:
         ResampleCache.clear()
 
 
+    #I think deletes will be handled correctly already for references to the model on gpu and cpu.
     # def __del__(self):
     #     logger.info("Get sid: " + sid)
     #

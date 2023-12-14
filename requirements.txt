@@ -9,5 +9,7 @@ librosa #because some dependencies use anyway so can't avoid sry
 pyworld
 praat-parselmouth
 torchcrepe
+huggingface-hub
+fairseq
 
 

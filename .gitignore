@@ -31,3 +31,4 @@ gen
 **/*.py[cod]
 dist
 venv
+testing.ipynb
