@@ -21,3 +21,13 @@ rmvpe.pt
 
 # To set a Python version for the project
 .tool-versions
+
+#Charles ignore
+.idea
+*.iml
+out
+gen
+**/__pycache__/
+**/*.py[cod]
+dist
+venv
