@@ -46,6 +46,8 @@ def cache_harvest_f0(audio:torch.Tensor, fs, f0max, f0min, frame_period):
     return f0
 
 
+enable_butterfilter=False
+
 class Pipeline(object):
     def __init__(self, tgt_sr, config):
         self.x_pad, self.x_query, self.x_center, self.x_max, self.is_half = (
@@ -281,8 +283,10 @@ class Pipeline(object):
     ):
         (index, big_npy) = index
         #The butterworth highpass probably only serves as a safe gaurd, might want to remove it and ask ppl to add their own preprocessing step.
+        #it's an extra memory expensive step for little gain.
         #I think the model also has a built in cutoff DB where it's not applied at ~-45db too.
-        audio=torchaudio.functional.filtfilt(audio.to(torch.float64,non_blocking=True),ah,bh).to(torch.float32,non_blocking=True) #assume on gpu
+        if enable_butterfilter:
+            audio=torchaudio.functional.filtfilt(audio.to(torch.float64,non_blocking=True),ah,bh).to(torch.float32,non_blocking=True) #assume on gpu
         npaud=audio.to(_cpu,non_blocking=False).numpy() #turning this into a torch section would speed it up
         audio_pad = np.pad(npaud, (self.window // 2, self.window // 2), mode="reflect")
         opt_ts = []

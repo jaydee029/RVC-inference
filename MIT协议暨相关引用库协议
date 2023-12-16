@@ -21,25 +21,3 @@ HIFIGAN
 https://github.com/jik876/hifi-gan/blob/master/LICENSE
 MIT License
 
-gradio
-https://github.com/gradio-app/gradio/blob/main/LICENSE
-Apache License 2.0
-
-ffmpeg
-https://github.com/FFmpeg/FFmpeg/blob/master/COPYING.LGPLv3
-https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2021-02-28-12-32/ffmpeg-n4.3.2-160-gfbb9368226-win64-lgpl-4.3.zip
-LPGLv3 License
-MIT License
-
-ultimatevocalremovergui
-https://github.com/Anjok07/ultimatevocalremovergui/blob/master/LICENSE
-https://github.com/yang123qwe/vocal_separation_by_uvr5
-MIT License
-
-audio-slicer
-https://github.com/openvpi/audio-slicer/blob/main/LICENSE
-MIT License
-
-PySimpleGUI
-https://github.com/PySimpleGUI/PySimpleGUI/blob/master/license.txt
-LPGLv3 License

@@ -10,7 +10,7 @@ pyworld
 praat-parselmouth
 torchcrepe
 huggingface-hub
-#fairseq
-git+https://github.com/One-sixth/fairseq.git #for python 3.11+ support.
+fairseq
+#git+https://github.com/One-sixth/fairseq.git #for python 3.11+ support.
 
 

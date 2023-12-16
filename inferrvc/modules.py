@@ -69,7 +69,8 @@ class RVC:
     _hubert_model=None
     _pipeline=None
     _LOUD16K=torchaudio.transforms.Loudness(16000).to(_devgp,non_blocking=True) #going to assume these are small enough kernels to be neglible memory hogs.
-    outputfreq = int(os.getenv('RVC_OUTPUTFREQ')) #so changeable but should probably change it for the specific instance only.
+    outputfreq = int(os.getenv('RVC_OUTPUTFREQ','44100')) #so changeable but should probably change it for the specific instance only.
+    returnblocking = bool(os.getenv('RVC_RETURNBLOCKING','True'))
     _LOUDOUTPUT=torchaudio.transforms.Loudness(outputfreq).to(_devgp,non_blocking=True)
     MATCH_ORIGINAL=1
     NO_CHANGE=2
@@ -109,8 +110,9 @@ class RVC:
         index = index if index is not None else _pid if _pid is not None else os.path.basename(self.model_path).replace('.pth','.index')
         iisab, iisidx = os.path.isabs(index), len(index) > 6 and index[-6:] == '.index'
         self.index_path = index
+        pdr=os.path.dirname(self.model_path)
         if not iisab:
-            self.index_path=os.path.join(os.getenv('RVC_INDEXDIR', os.getenv("RVC_MODELDIR")) if self.index_path is not None else os.path.dirname(self.model_path),index)
+            self.index_path=os.path.join(os.getenv('RVC_INDEXDIR', os.getenv("RVC_MODELDIR",pdr)) if self.index_path is not None else pdr,index)
         if not iisidx:
             if os.path.isdir(self.index_path):
                 tl = os.listdir(self.index_path)
@@ -300,7 +302,6 @@ class RVC:
                 audio /= am
         aif=audio.__dict__.get('frequency',None) #not sure if new object so checking first
         if aif is not None:
-            #audio=audio.to(self.config.device,non_blocking=True)
             audio=ResampleCache.resample((aif,16000),audio.to(self.config.device,non_blocking=True),self.config.device)
             am = audio.abs().max()
             if am > 1.1:
@@ -326,7 +327,6 @@ class RVC:
             f0_spec
         )
         audio_opt = ResampleCache.resample((self.tgt_sr,self.outputfreq), audio_opt,self.config.device)
-        #print(self.name,audio_opt)
         if output_volume is RVC.MATCH_ORIGINAL:
             lufsout=self._LOUDOUTPUT(audio_opt.unsqueeze(0))
             lufsorig=self._LOUD16K(audio)
@@ -336,7 +336,7 @@ class RVC:
             audio_opt *= 10 ** ((output_volume-lufsout) / 20)
         #note to self, referencing the memory block of a tensor without synchronizing, will cause generic compiled code like numpy to
         #start working prematurely unless you call cuda/cpu .synchronize() before running numpy/numba code on the tensor.
-        return audio_opt.to(output_device,non_blocking=True) if output_device is not None else audio_opt.to(self.config.device,non_blocking=True)
+        return audio_opt.to(output_device,non_blocking=not self.returnblocking) if output_device is not None else audio_opt.to(self.config.device,non_blocking=not self.returnblocking)
 
 
 
@@ -348,7 +348,7 @@ _SUBTYPE2DTYPE = {
     "FLOAT": "float32",
     "DOUBLE": "float64",
 }
-#modified torchaudio soundfile backend
+#modified torchaudio soundfile backend, dtype is now an optional arg
 def load_torchaudio(
     filepath: str,
     frame_offset: int = 0,
