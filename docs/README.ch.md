@@ -1,5 +1,5 @@
 # RVC Inference
-[**English**](./README.md) | [**中文简体**](./docs/README.ch.md) | [**日本語**](./docs/README.ja.md) | [**한국어**](./docs/README.ko.md) | [**Français**](./docs/README.fr.md)| [**Türkçe**](./docs/README.tr.md)
+[**English**](../README.md) | [**中文简体**](./README.ch.md) | [**日本語**](./README.ja.md) | [**한국어**](./README.ko.md) | [**Français**](./README.fr.md)| [**Türkçe**](./README.tr.md)
 ------
 翻译由 GPT-4 提供。
 ## 安装
