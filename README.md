@@ -1,8 +1,8 @@
-
-
+# RVC Inference
 
 [**English**](./README.md) | [**中文简体**](./docs/README.ch.md) | [**日本語**](./docs/README.ja.md) | [**한국어**](./docs/README.ko.md) | [**Français**](./docs/README.fr.md)| [**Türkçe**](./docs/README.tr.md)
 ------
+Translations provided by GPT-4.
 
 ## Install
 If using Python 3.11+ install the fairseq fork first as fairseq is not yet compatible with 3.11.
