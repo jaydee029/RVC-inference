@@ -66,7 +66,8 @@ import soundfile as sf
 sf.write('path/to/audio_whis.wav',paudio1,44100)
 sf.write('path/to/audio_obama.wav',paudio2,44100)
 ```
-
+[Whis example.](./docs/audio_whis.wav)  
+[Obama example.](./docs/audio_obama.wav)
 
 ### Changes from the original repo:
  - Removed most code not related to inferencing. Now much fewer dependencies.

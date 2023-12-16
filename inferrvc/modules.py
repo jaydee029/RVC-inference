@@ -62,6 +62,11 @@ class _ResampleCache(dict):
 
 ResampleCache=_ResampleCache()
 
+def _try_int(s):
+    try:
+        return int(s)
+    except ValueError:
+        return None
 
 class RVC:
 
@@ -69,9 +74,9 @@ class RVC:
     _hubert_model=None
     _pipeline=None
     _LOUD16K=torchaudio.transforms.Loudness(16000).to(_devgp,non_blocking=True) #going to assume these are small enough kernels to be neglible memory hogs.
-    outputfreq = int(os.getenv('RVC_OUTPUTFREQ','44100')) #so changeable but should probably change it for the specific instance only.
-    returnblocking = bool(os.getenv('RVC_RETURNBLOCKING','True'))
+    outputfreq = _try_int(os.getenv('RVC_OUTPUTFREQ',None)) #so changeable but should probably change it for the specific instance only.
     _LOUDOUTPUT=torchaudio.transforms.Loudness(outputfreq).to(_devgp,non_blocking=True)
+    returnblocking = bool(os.getenv('RVC_RETURNBLOCKING', 'True'))
     MATCH_ORIGINAL=1
     NO_CHANGE=2
 
@@ -326,7 +331,8 @@ class RVC:
             protect,
             f0_spec
         )
-        audio_opt = ResampleCache.resample((self.tgt_sr,self.outputfreq), audio_opt,self.config.device)
+        if self.outputfreq is not None:
+            audio_opt = ResampleCache.resample((self.tgt_sr,self.outputfreq), audio_opt,self.config.device)
         if output_volume is RVC.MATCH_ORIGINAL:
             lufsout=self._LOUDOUTPUT(audio_opt.unsqueeze(0))
             lufsorig=self._LOUD16K(audio)
