@@ -7,12 +7,12 @@ GPT-4가 제공한 번역입니다.
 ## 설치
 Python 3.11+를 사용하는 경우 아직 fairseq이 3.11과 호환되지 않으므로 먼저 fairseq 포크를 설치하세요.
 ```bash
-pip install git+https://github.com/One-sixth/fairseq.git
+pip install https://github.com/One-sixth/fairseq/archive/main.zip
 ```
 
 아래와 같이 레포지토리를 pip 설치하면 모든 의존성이 자동으로 설치됩니다.
 ```bash
-pip install git+https://github.com/CircuitCM/RVC-inference.git
+pip install https://github.com/CircuitCM/RVC-inference/archive/main.zip
 ```
 기본적으로 pypi는 pytorch cpu 빌드를 설치합니다. Nvidia 또는 AMD를 사용하여 gpu용으로 설치하려면 https://pytorch.org/get-started/locally/를 방문하여 gpu용 `torch`와 `torchaudio`를 _이 라이브러리를 설치하기 전에_ pip로 설치하세요.
 

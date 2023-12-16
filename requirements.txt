@@ -2,7 +2,7 @@
 python-dotenv
 numpy
 scipy
-torch --index-url https://download.pytorch.org/whl/cu118
+torch #--index-url https://download.pytorch.org/whl/cu118
 soundfile
 torchaudio
 librosa #because some dependencies use anyway so can't avoid sry

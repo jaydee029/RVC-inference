@@ -1,0 +1,19 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "inferrvc"
+authors = [{name = "Charles Marks", email = "charlesmarksco@gmail.com"}]
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = ["License :: OSI Approved :: MIT License"]
+dynamic = ["version", "description"]
+dependencies = ['python-dotenv','numpy','scipy','soundfile','torch','torchaudio','librosa','pyworld','praat-parselmouth','torchcrepe','huggingface-hub','fairseq']
+
+[project.urls]
+Home = "https://github.com/CircuitCM/RVC-inference"
+
+[tool.flit.module]
+name = "inferrvc"
+

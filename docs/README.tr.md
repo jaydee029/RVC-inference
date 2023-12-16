@@ -7,12 +7,12 @@ GPT-4 tarafından sağlanan çeviriler.
 ## Kurulum
 Python 3.11+ kullanıyorsanız, önce fairseq şubesini yükleyin, çünkü fairseq henüz 3.11 ile uyumlu değil.
 ```bash
-pip install git+https://github.com/One-sixth/fairseq.git
+pip install https://github.com/One-sixth/fairseq/archive/main.zip
 ```
 
 Aşağıdaki gibi repoyu pip ile yükleyin ve tüm bağımlılıklar otomatik olarak yüklenecektir.
 ```bash
-pip install git+https://github.com/CircuitCM/RVC-inference.git
+pip install https://github.com/CircuitCM/RVC-inference/archive/main.zip
 ```
 Varsayılan olarak pypi, pytorch'un cpu sürümünü yükler. Nvidia veya AMD kullanarak gpu için yüklemek için, https://pytorch.org/get-started/locally/ adresini ziyaret edin ve bu kütüphaneyi yüklemekten _önce_ `torch` ve `torchaudio`'yu gpu ile pip yükleyin.
 

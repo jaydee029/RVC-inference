@@ -7,12 +7,12 @@
 ## インストール
 Python 3.11+ を使用する場合は、fairseq がまだ 3.11 と互換性がないため、まず fairseq のフォークをインストールしてください。
 ```bash
-pip install git+https://github.com/One-sixth/fairseq.git
+pip install https://github.com/One-sixth/fairseq/archive/main.zip
 ```
 
 以下のようにリポジトリを Pip インストールすると、必要な依存関係が自動的にインストールされます。
 ```bash
-pip install git+https://github.com/CircuitCM/RVC-inference.git
+pip install https://github.com/CircuitCM/RVC-inference/archive/main.zip
 ```
 デフォルトでは pypi は pytorch の CPU ビルドをインストールします。Nvidia または AMD を使用して GPU 用にインストールするには、https://pytorch.org/get-started/locally/ を訪れて、このライブラリをインストールする _前に_ `torch` と `torchaudio` を GPU 付きで pip インストールしてください。
 
