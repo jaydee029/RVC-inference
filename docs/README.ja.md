@@ -12,7 +12,8 @@ pip install https://github.com/One-sixth/fairseq/archive/main.zip
 
 以下のようにリポジトリを Pip インストールすると、必要な依存関係が自動的にインストールされます。
 ```bash
-pip install https://github.com/CircuitCM/RVC-inference/raw/main/dist/inferrvc-1.0-py3-none-any.whl
+pip uninstall inferrvc
+pip install https://github.com/CircuitCM/RVC-inference/raw/main/dist/inferrvc-1.0-py3-none-any.whl --no-cache-dir
 ```
 デフォルトでは pypi は pytorch の CPU ビルドをインストールします。Nvidia または AMD を使用して GPU 用にインストールするには、https://pytorch.org/get-started/locally/ を訪れて、このライブラリをインストールする _前に_ `torch` と `torchaudio` を GPU 付きで pip インストールしてください。
 

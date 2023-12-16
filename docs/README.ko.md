@@ -12,7 +12,8 @@ pip install https://github.com/One-sixth/fairseq/archive/main.zip
 
 아래와 같이 레포지토리를 pip 설치하면 모든 의존성이 자동으로 설치됩니다.
 ```bash
-pip install https://github.com/CircuitCM/RVC-inference/raw/main/dist/inferrvc-1.0-py3-none-any.whl
+pip uninstall inferrvc
+pip install https://github.com/CircuitCM/RVC-inference/raw/main/dist/inferrvc-1.0-py3-none-any.whl --no-cache-dir
 ```
 기본적으로 pypi는 pytorch cpu 빌드를 설치합니다. Nvidia 또는 AMD를 사용하여 gpu용으로 설치하려면 https://pytorch.org/get-started/locally/를 방문하여 gpu용 `torch`와 `torchaudio`를 _이 라이브러리를 설치하기 전에_ pip로 설치하세요.
 

@@ -10,7 +10,8 @@ pip install https://github.com/One-sixth/fairseq/archive/main.zip
 
 使用下面的命令安装本仓库，所有依赖项将自动安装。
 ```bash
-pip install https://github.com/CircuitCM/RVC-inference/raw/main/dist/inferrvc-1.0-py3-none-any.whl
+pip uninstall inferrvc
+pip install https://github.com/CircuitCM/RVC-inference/raw/main/dist/inferrvc-1.0-py3-none-any.whl --no-cache-dir
 ```
 默认情况下，pypi 会安装 PyTorch 的 CPU 版本。如果要在 Nvidia 或 AMD 的 GPU 上安装，请访问 https://pytorch.org/get-started/locally/，然后在安装此库之前使用 pip 安装 `torch` 和 `torchaudio` 的 GPU 版本。
 
