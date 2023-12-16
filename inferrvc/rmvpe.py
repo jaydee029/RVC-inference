@@ -21,7 +21,7 @@ import torch.nn.functional as F
 from librosa.util import pad_center
 from scipy.signal import get_window
 
-import jit
+from . import jit
 
 logger = logging.getLogger(__name__)
 
@@ -449,28 +449,28 @@ class MelSpectrogram(torch.nn.Module):
         self.clamp = clamp
         self.is_half = is_half
 
-    def forward(self, audio, keyshift=0, speed=1, center=True):
+    def forward(self, saudio, keyshift=0, speed=1, center=True):
         factor = 2 ** (keyshift / 12)
         n_fft_new = int(np.round(self.n_fft * factor))
         win_length_new = int(np.round(self.win_length * factor))
         hop_length_new = int(np.round(self.hop_length * speed))
-        keyshift_key = str(keyshift) + "_" + str(audio.device)
+        keyshift_key = str(keyshift) + "_" + str(saudio.device)
         if keyshift_key not in self.hann_window:
             self.hann_window[keyshift_key] = torch.hann_window(win_length_new).to(
-                audio.device
+                saudio.device
             )
-        if "privateuseone" in str(audio.device):
+        if "privateuseone" in str(saudio.device):
             if not hasattr(self, "stft"):
                 self.stft = STFT(
                     filter_length=n_fft_new,
                     hop_length=hop_length_new,
                     win_length=win_length_new,
                     window="hann",
-                ).to(audio.device)
-            magnitude = self.stft.transform(audio)
+                ).to(saudio.device)
+            magnitude = self.stft.transform(saudio)
         else:
             fft = torch.stft(
-                audio,
+                saudio,
                 n_fft=n_fft_new,
                 hop_length=hop_length_new,
                 win_length=win_length_new,
@@ -498,7 +498,7 @@ class RMVPE:
         self.resample_kernel = {}
         self.is_half = is_half
         if device is None:
-            device = "cuda:0" if torch.cuda.is_available() else "cpu"
+            device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
         self.device = device
         self.mel_extractor = MelSpectrogram(
             is_half, 128, 16000, 1024, 160, None, 30, 8000
@@ -512,8 +512,6 @@ class RMVPE:
             )
             self.model = ort_session
         else:
-            if str(self.device) == "cuda":
-                self.device = torch.device("cuda:0")
 
             def get_jit_model():
                 jit_model_path = model_path.rstrip(".pth")
@@ -591,18 +589,19 @@ class RMVPE:
         # f0 = np.array([10 * (2 ** (cent_pred / 1200)) if cent_pred else 0 for cent_pred in cents_pred])
         return f0
 
-    def infer_from_audio(self, audio:torch.Tensor|np.ndarray, thred=0.03):
+    def infer_from_audio(self, saudio: torch.Tensor | np.ndarray, thred=0.03):
         # torch.cuda.synchronize()
         #t0 = ttime()
-        if isinstance(audio, np.ndarray):
-            audio = torch.from_numpy(audio)
-        if audio.dtype != torch.float32:
-            audio = audio.float()
-        audio = audio.to(self.device,nonblocking=True)
+        if isinstance(saudio, np.ndarray):
+            saudio:torch.Tensor = torch.from_numpy(saudio)
+        if saudio.dtype != torch.float32:
+            saudio:torch.Tensor = saudio.float()
+        saudio = saudio.to(self.device, non_blocking=True)
+        #print(audio.shape)
+        #print(audio.unsqueeze(0).shape)
         mell = self.mel_extractor(
-            audio.unsqueeze(0), center=True
+            saudio, center=True #assume already 2d
         )
-        # print(123123123,mel.device.type)
         # torch.cuda.synchronize()
         #t1 = ttime()
         hidden = self.mel2hidden(mell)
@@ -617,6 +616,7 @@ class RMVPE:
             hidden = hidden.astype("float32")
 
         f0 = self.decode(hidden, thred=thred)
+
         # torch.cuda.synchronize()
         #t3 = ttime()
         # print("hmvpe:%s\t%s\t%s\t%s"%(t1-t0,t2-t1,t3-t2,t3-t0))

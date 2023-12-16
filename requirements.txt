@@ -2,7 +2,7 @@
 python-dotenv
 numpy
 scipy
-torch
+torch --index-url https://download.pytorch.org/whl/cu118
 soundfile
 torchaudio
 librosa #because some dependencies use anyway so can't avoid sry
@@ -10,6 +10,7 @@ pyworld
 praat-parselmouth
 torchcrepe
 huggingface-hub
-fairseq
+#fairseq
+git+https://github.com/One-sixth/fairseq.git #for python 3.11+ support.
 
 

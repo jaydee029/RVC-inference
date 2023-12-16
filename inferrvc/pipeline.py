@@ -23,10 +23,14 @@ from huggingface_hub import hf_hub_download
 now_dir = os.getcwd()
 sys.path.append(now_dir)
 
-bh, ah = signal.butter(N=5, Wn=48, btype="high", fs=16000)
-
 _cpu=torch.device("cpu")
 _gpu=torch.device("cuda:0")
+_devgp=dev=_gpu if torch.cuda.is_available() else _cpu
+
+bh, ah = signal.butter(N=5, Wn=48, btype="high", fs=16000)
+bh,ah=torch.from_numpy(bh).to(_gpu,non_blocking=True),torch.from_numpy(ah).to(_gpu,non_blocking=True)
+
+
 
 @lru_cache #torch.Tensor should be serializable
 def cache_harvest_f0(audio:torch.Tensor, fs, f0max, f0min, frame_period):
@@ -134,7 +138,6 @@ class Pipeline(object):
                 del self.model_rmvpe.model
                 del self.model_rmvpe
                 logger.info("Cleaning ortruntime memory")
-
         f0 *= pow(2, f0_up_key / 12)
         # with open("test.txt","w")as f:f.write("\n".join([str(i)for i in f0.tolist()]))
         tf0 = self.sr // self.window  # 每秒f0点数
@@ -175,19 +178,18 @@ class Pipeline(object):
         version,
         protect,
     ):  # ,file_index,file_big_npy
-        feats = audio0
+        feats = audio0[0]
         if self.is_half:
             feats = feats.half()
         else:
-            feats = feats.float()
+            feats = feats.float() #redundant after filtfilt
         if feats.dim() == 2:  # double channels
             feats = feats.mean(-1)
         assert feats.dim() == 1, feats.dim()
         feats = feats.view(1, -1)
-        padding_mask = torch.BoolTensor(feats.shape).to(self.device).fill_(False)
-
+        padding_mask = torch.BoolTensor(feats.shape).to(self.device,non_blocking=True).fill_(False)
         inputs = {
-            "source": feats.to(self.device),
+            "source": feats.to(self.device,non_blocking=True),
             "padding_mask": padding_mask,
             "output_layer": 9 if version == "v1" else 12,
         }
@@ -202,9 +204,10 @@ class Pipeline(object):
             and not isinstance(big_npy, type(None))
             and index_rate != 0
         ):
-            npy = feats[0].cpu().numpy()
             if self.is_half:
-                npy = npy.astype("float32")
+                npy = feats[0].to(_cpu, dtype=torch.float32, non_blocking=False).numpy()
+            else:
+                npy = feats[0].to(_cpu,non_blocking=False).numpy()
 
             # _, I = index.search(npy, 1)
             # npy = big_npy[I.squeeze()]
@@ -213,13 +216,17 @@ class Pipeline(object):
             weight = np.square(1 / score)
             weight /= weight.sum(axis=1, keepdims=True)
             npy = np.sum(big_npy[ix] * np.expand_dims(weight, axis=2), axis=1)
-
+            print(self.is_half)
             if self.is_half:
-                npy = npy.astype("float16")
-            feats = (
-                torch.from_numpy(npy).unsqueeze(0).to(self.device) * index_rate
-                + (1 - index_rate) * feats
-            )
+                feats = (
+                    torch.from_numpy(npy).unsqueeze(0).to(self.device,dtype=torch.float16,non_blocking=True) * index_rate
+                    + (1 - index_rate) * feats
+                )
+            else:
+                feats = (
+                    torch.from_numpy(npy).unsqueeze(0).to(self.device,non_blocking=True) * index_rate
+                    + (1 - index_rate) * feats
+                )
 
         feats = F.interpolate(feats.permute(0, 2, 1), scale_factor=2).permute(0, 2, 1)
         if protect < 0.5 and pitch is not None and pitchf is not None:
@@ -227,7 +234,7 @@ class Pipeline(object):
                 0, 2, 1
             )
         t1 = ttime()
-        p_len = audio0.shape[0] // self.window
+        p_len = audio0.shape[1] // self.window
         if feats.shape[1] < p_len:
             p_len = feats.shape[1]
             if pitch is not None and pitchf is not None:
@@ -245,7 +252,7 @@ class Pipeline(object):
         with torch.no_grad():
             hasp = pitch is not None and pitchf is not None
             arg = (feats, p_len, pitch, pitchf, sid) if hasp else (feats, p_len, sid)
-            audio1 = (net_g.infer(*arg)[0][0, 0]).data.float() #now it comes out gpu and tensor
+            audio1 = (net_g.infer(*arg)[0][0, 0]).data.to(self.device,non_blocking=True) #now it comes out gpu and tensor
             del hasp, arg
         del feats, p_len, padding_mask
         # if torch.cuda.is_available():
@@ -273,9 +280,10 @@ class Pipeline(object):
         f0_spec:str|np.ndarray|None=None,
     ):
         (index, big_npy) = index
-        audio=torchaudio.functional.filtfilt(audio,ah,bh) #assume on gpu
-        #audio = signal.filtfilt(bh, ah, audio.numpy()) #might be worth experimenting with this or excluding it explicitly as a preprocessing step
-        npaud=audio.to(_cpu,non_blocking=True).numpy()
+        #The butterworth highpass probably only serves as a safe gaurd, might want to remove it and ask ppl to add their own preprocessing step.
+        #I think the model also has a built in cutoff DB where it's not applied at ~-45db too.
+        audio=torchaudio.functional.filtfilt(audio.to(torch.float64,non_blocking=True),ah,bh).to(torch.float32,non_blocking=True) #assume on gpu
+        npaud=audio.to(_cpu,non_blocking=False).numpy() #turning this into a torch section would speed it up
         audio_pad = np.pad(npaud, (self.window // 2, self.window // 2), mode="reflect")
         opt_ts = []
         if audio_pad.shape[0] > self.t_max:
@@ -296,8 +304,7 @@ class Pipeline(object):
         t = None
         t1 = ttime()
         audio_pad=torch.nn.functional.pad(audio, (self.t_pad, self.t_pad), mode="reflect")
-        #audio_pad = torch.pad(npaud, (self.t_pad, self.t_pad), mode="reflect")
-        p_len = audio_pad.shape[0] // self.window
+        p_len = audio_pad.shape[1] // self.window
         if isinstance(f0_spec, str):
             try:
                 with open(f0_spec, "r") as f:

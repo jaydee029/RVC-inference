@@ -8,6 +8,7 @@ import torch
 import torchaudio
 import faiss
 from fairseq import checkpoint_utils
+import soundfile
 
 from .infer_pack.models import (
     SynthesizerTrnMs256NSFsid,
@@ -27,8 +28,6 @@ _devgp=dev=_gpu if torch.cuda.is_available() else _cpu
 def download_models():
     hf_hub_download('lj1995/VoiceConversionWebUI', 'hubert_base.pt')
     hf_hub_download('lj1995/VoiceConversionWebUI', 'rmvpe.pt')
-
-
 
 
 
@@ -68,24 +67,23 @@ class RVC:
 
     #bootleg singletons
     _hubert_model=None
-    _f0_predictor=None
     _pipeline=None
     _LOUD16K=torchaudio.transforms.Loudness(16000).to(_devgp,non_blocking=True) #going to assume these are small enough kernels to be neglible memory hogs.
-    _LOUDOUTPUT=torchaudio.transforms.Loudness(int(os.getenv('RVC_OUTPUTFREQ'))).to(_devgp,non_blocking=True)
+    outputfreq = int(os.getenv('RVC_OUTPUTFREQ')) #so changeable but should probably change it for the specific instance only.
+    _LOUDOUTPUT=torchaudio.transforms.Loudness(outputfreq).to(_devgp,non_blocking=True)
     MATCH_ORIGINAL=1
     NO_CHANGE=2
 
 
-    def __init__(self, model:str,index:str=None, config=None,_outp_freq=44100):
+    def __init__(self, model:str,index:str=None, config=None):
         """Load up the specific RVC model, and initializes generic models as singletons. call rvc.run(audio) to run the model."""
         self.n_spk = None
-        self.tgt_sr = None
+        self.tgt_sr = None #model's sample rate
         self.net_g = None
         self.cpt = None
         self.version = None
         self.if_f0 = None
         self.index = None
-        self.output_freq=_outp_freq
 
 
         self.config = Config() if config is None else config
@@ -93,7 +91,7 @@ class RVC:
         #if no to absolute then join MODELDIR with model.
         #then if no to .pth then check is self.model_path a dir, if not then add .pth file, if it is a dir then os.listdir select first .pth in the dir. join with self.model_path and finish.
         #next within the is dir part of self.model_path is dir, if index is None then index = first index found in this dir, else it's = fpth.replace .pth with .index.
-        misab,mispath=os.path.isabs(model), len(model)> 4 and model[-4:] is '.pth'
+        misab,mispath=os.path.isabs(model), len(model)> 4 and model[-4:] == '.pth'
         self.model_path=model
         _pid=None
         if not misab:
@@ -101,25 +99,26 @@ class RVC:
         if not mispath:
             if os.path.isdir(self.model_path):
                 tl=os.listdir(self.model_path)
-                fpth = next((item for item in tl if len(item)> 4 and item[-4:] is '.pth'), None)
+                fpth = next((item for item in tl if len(item)> 4 and item[-4:] == '.pth'), None)
                 self.model_path=os.path.join(self.model_path,fpth) if fpth is not None else self.model_path+'.pth'
-                _pid=next((item for item in tl if len(item)> 6 and item[-6:] is '.index'), None)
+                _pid=next((item for item in tl if len(item)> 6 and item[-6:] == '.index'), None)
             else:
                 self.model_path+='.pth'
-        self.index_path=index
-        index = index if index is not None else _pid if _pid is not None else os.path.basename(self.model_path).replace('.pth','.index')
 
-        self.index_path=index
-        iisab, iisidx,nindx = os.path.isabs(index), len(index) > 6 and index[-6:] is '.index',os.getenv('RVC_INDEXDIR',None) is None
+        #nindx=os.getenv('RVC_INDEXDIR',None) is None
+        index = index if index is not None else _pid if _pid is not None else os.path.basename(self.model_path).replace('.pth','.index')
+        iisab, iisidx = os.path.isabs(index), len(index) > 6 and index[-6:] == '.index'
+        self.index_path = index
         if not iisab:
             self.index_path=os.path.join(os.getenv('RVC_INDEXDIR', os.getenv("RVC_MODELDIR")) if self.index_path is not None else os.path.dirname(self.model_path),index)
         if not iisidx:
             if os.path.isdir(self.index_path):
                 tl = os.listdir(self.index_path)
-                fpth = next((item for item in tl if len(item) > 6 and item[-6:] is '.index'), None)
-                self.model_path = os.path.join(self.model_path, fpth) if fpth is not None else self.model_path + '.index'
+                fpth = next((item for item in tl if len(item) > 6 and item[-6:] == '.index'), None)
+                self.index_path = os.path.join(self.index_path, fpth) if fpth is not None else self.index_path + '.index'
             else:
                 self.index_path += '.index'
+        self.name = f"Model: {os.path.basename(self.model_path).split('.')[0]}, Index: {os.path.basename(self.index_path).split('.')[0]}"
         self._load()
 
     @property
@@ -217,7 +216,7 @@ class RVC:
 
     def _load(self, model_path=None, index_path=None):
         model_path,index_path=self.model_path if model_path is None else model_path, self.index_path if index_path is None else index_path
-        logger.info(f"Loading: {model_path}")
+        #logger.info(f"Loading: {model_path}")
 
         self.cpt = torch.load(model_path, map_location="cpu")
         self.tgt_sr = self.cpt["config"][-1]
@@ -245,7 +244,7 @@ class RVC:
         else:
             self.model = self.model.float()
 
-        logger.info("Selecting index: " + index_path)
+        #logger.info("Selecting index: " + index_path)
         mindex = faiss.read_index(index_path)
         big_npy = mindex.reconstruct_n(0, mindex.ntotal)
         self.index=(mindex, big_npy)
@@ -263,6 +262,20 @@ class RVC:
         #     else {"visible": True, "maximum": n_spk, "__type__": "update"}
         # )
 
+    def __call__(self,
+        audio:str|torch.Tensor,
+        f0_up_key=0.,#12 semitones per octave
+        f0_method='rmvpe',
+        index_rate=.7,
+        filter_radius=3,
+        protect=.5,
+        output_device=None,
+        output_volume=1,#RVC.MATCH_ORIGINAL
+        f0_spec:str|np.ndarray|None = None):
+
+        return self.run(audio,f0_up_key,f0_method,index_rate,filter_radius,protect,output_device,output_volume,f0_spec)
+
+
     def run(
         self,
         audio:str|torch.Tensor,
@@ -277,20 +290,25 @@ class RVC:
     ):
 
         if isinstance(audio,str):
-            audio,freq = torchaudio.load(audio).to(self.config.device,non_blocking=True)
-            am=audio.abs().max()
-            if am>2.:
-                audio/=am
-            audio=ResampleCache.resample((freq,16000),audio,self.config.device)
-        aif=audio.__dict__.get('frequency',None)
+
+            audio,freq = load_torchaudio(audio,dtype='float32')
+            #audio=audio.to(self.config.device,non_blocking=True)
+            audio=ResampleCache.resample((freq,16000),audio.to(self.config.device,non_blocking=True),self.config.device)
+            print('Audio resampled to 16k')
+            am = audio.abs().max()
+            if am > 1.1:
+                audio /= am
+        aif=audio.__dict__.get('frequency',None) #not sure if new object so checking first
         if aif is not None:
-            audio=audio.to(self.config.device,non_blocking=True)
-            audio=ResampleCache.resample((aif,16000),audio,self.config.device)
-        #else assume audio is already 16k
+            #audio=audio.to(self.config.device,non_blocking=True)
+            audio=ResampleCache.resample((aif,16000),audio.to(self.config.device,non_blocking=True),self.config.device)
+            am = audio.abs().max()
+            if am > 1.1:
+                audio /= am
+        # else assume audio is already 16k
 
         f0_up_key = int(f0_up_key)
         times = [0, 0, 0]
-
         audio_opt = self.pipeline.pipeline(
             self.hubert_model,
             self.model,
@@ -307,12 +325,53 @@ class RVC:
             protect,
             f0_spec
         )
+        audio_opt = ResampleCache.resample((self.tgt_sr,self.outputfreq), audio_opt,self.config.device)
+        #print(self.name,audio_opt)
         if output_volume is RVC.MATCH_ORIGINAL:
-            lufsout=self._LOUDOUTPUT(audio_opt)
+            lufsout=self._LOUDOUTPUT(audio_opt.unsqueeze(0))
             lufsorig=self._LOUD16K(audio)
             audio_opt *= 10 ** ((lufsorig - lufsout) / 20)
         elif output_volume is not RVC.NO_CHANGE: #then it's a negative float lufs target
-            lufsout = self._LOUDOUTPUT(audio_opt)
+            lufsout = self._LOUDOUTPUT(audio_opt.unsqueeze(0))
             audio_opt *= 10 ** ((output_volume-lufsout) / 20)
+        #note to self, referencing the memory block of a tensor without synchronizing, will cause generic compiled code like numpy to
+        #start working prematurely unless you call cuda/cpu .synchronize() before running numpy/numba code on the tensor.
         return audio_opt.to(output_device,non_blocking=True) if output_device is not None else audio_opt.to(self.config.device,non_blocking=True)
 
+
+
+_SUBTYPE2DTYPE = {
+    "PCM_S8": "int8",
+    "PCM_U8": "uint8",
+    "PCM_16": "int16",
+    "PCM_32": "int32",
+    "FLOAT": "float32",
+    "DOUBLE": "float64",
+}
+#modified torchaudio soundfile backend
+def load_torchaudio(
+    filepath: str,
+    frame_offset: int = 0,
+    num_frames: int = -1,
+    normalize: bool = True,
+    channels_first: bool = True,
+    dtype=None,
+) -> tuple[torch.Tensor, int]:
+
+    with soundfile.SoundFile(filepath, "r") as file_:
+        if dtype is None:
+            if file_.format != "WAV" or normalize:
+                dtype = "float32"
+            elif file_.subtype not in _SUBTYPE2DTYPE:
+                raise ValueError(f"Unsupported subtype: {file_.subtype}")
+            else:
+                dtype = _SUBTYPE2DTYPE[file_.subtype]
+
+        frames = file_._prepare_read(frame_offset, None, num_frames)
+        waveform = file_.read(frames, dtype, always_2d=True)
+        sample_rate = file_.samplerate
+
+    waveform = torch.from_numpy(waveform)
+    if channels_first:
+        waveform = waveform.t()
+    return waveform, sample_rate
