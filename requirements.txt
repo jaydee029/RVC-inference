@@ -11,6 +11,7 @@ praat-parselmouth
 torchcrepe
 huggingface-hub
 fairseq
+faiss-cpu
 #git+https://github.com/One-sixth/fairseq.git #for python 3.11+ support.
 
 

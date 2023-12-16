@@ -9,7 +9,7 @@ readme = "README.md"
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: MIT License"]
 dynamic = ["version", "description"]
-dependencies = ['python-dotenv','numpy','scipy','soundfile','torch','torchaudio','librosa','pyworld','praat-parselmouth','torchcrepe','huggingface-hub','fairseq']
+dependencies = ['python-dotenv','numpy','scipy','soundfile','torch','torchaudio','librosa','pyworld','praat-parselmouth','torchcrepe','huggingface-hub','fairseq','faiss-cpu']
 
 [project.urls]
 Home = "https://github.com/CircuitCM/RVC-inference"
