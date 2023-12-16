@@ -29,7 +29,6 @@ out
 gen
 **/__pycache__/
 **/*.py[cod]
-dist
 venv
 testing.ipynb
 testing.py
