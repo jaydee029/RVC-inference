@@ -65,7 +65,7 @@ ResampleCache=_ResampleCache()
 def _try_int(s):
     try:
         return int(s)
-    except ValueError:
+    except:
         return None
 
 class RVC:
@@ -74,7 +74,7 @@ class RVC:
     _hubert_model=None
     _pipeline=None
     _LOUD16K=torchaudio.transforms.Loudness(16000).to(_devgp,non_blocking=True) #going to assume these are small enough kernels to be neglible memory hogs.
-    outputfreq = _try_int(os.getenv('RVC_OUTPUTFREQ',None)) #so changeable but should probably change it for the specific instance only.
+    outputfreq = _try_int(os.getenv('RVC_OUTPUTFREQ','44100')) #so changeable but should probably change it for the specific instance only.
     _LOUDOUTPUT=torchaudio.transforms.Loudness(outputfreq).to(_devgp,non_blocking=True)
     returnblocking = bool(os.getenv('RVC_RETURNBLOCKING', 'True'))
     MATCH_ORIGINAL=1

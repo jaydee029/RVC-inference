@@ -12,7 +12,7 @@ pip install https://github.com/One-sixth/fairseq/archive/main.zip
 
 Aşağıdaki gibi repoyu pip ile yükleyin ve tüm bağımlılıklar otomatik olarak yüklenecektir.
 ```bash
-pip install https://github.com/CircuitCM/RVC-inference/archive/main.zip
+pip install https://github.com/CircuitCM/RVC-inference/raw/main/dist/inferrvc-1.0-py3-none-any.whl
 ```
 Varsayılan olarak pypi, pytorch'un cpu sürümünü yükler. Nvidia veya AMD kullanarak gpu için yüklemek için, https://pytorch.org/get-started/locally/ adresini ziyaret edin ve bu kütüphaneyi yüklemekten _önce_ `torch` ve `torchaudio`'yu gpu ile pip yükleyin.
 

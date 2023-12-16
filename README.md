@@ -5,14 +5,14 @@
 Translations provided by GPT-4.
 
 ## Install
-If using Python 3.11+ install the fairseq fork first as fairseq is not yet compatible with 3.11.
+If using Python 3.11+ install the fairseq fork first as fairseq is not yet compatible with 3.11. (Will take a minute).
 ```bash
 pip install https://github.com/One-sixth/fairseq/archive/main.zip
 ```
 
 Pip install the repo like below and all dependencies will be installed automatically.
 ```bash
-pip install https://github.com/CircuitCM/RVC-inference/tree/main/dist/inferrvc-1.0-py3-none-any.whl
+pip install https://github.com/CircuitCM/RVC-inference/raw/main/dist/inferrvc-1.0-py3-none-any.whl
 ```
 By default pypi installs the pytorch cpu build. To install for gpu using Nvidia or AMD, visit https://pytorch.org/get-started/locally/ and pip install `torch` and `torchaudio` with gpu _before_ installing this library.
 
