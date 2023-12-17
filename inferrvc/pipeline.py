@@ -218,7 +218,6 @@ class Pipeline(object):
             weight = np.square(1 / score)
             weight /= weight.sum(axis=1, keepdims=True)
             npy = np.sum(big_npy[ix] * np.expand_dims(weight, axis=2), axis=1)
-            print(self.is_half)
             if self.is_half:
                 feats = (
                     torch.from_numpy(npy).unsqueeze(0).to(self.device,dtype=torch.float16,non_blocking=True) * index_rate

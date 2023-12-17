@@ -279,6 +279,23 @@ class RVC:
         output_device=None,
         output_volume=1,#RVC.MATCH_ORIGINAL
         f0_spec:str|np.ndarray|None = None):
+        """
+        Apply the RVC model to the audio.
+
+        Parameters:
+        - audio (str | torch.Tensor): The input audio file path or audio tensor.
+        - f0_up_key (float, optional): The base pitch shift in semitones (12 per octave). Defaults to 0.
+        - f0_method (str, optional): Method for pitch extraction. Defaults to 'rmvpe'.
+        - index_rate (float, optional):Increases the influence of the RVCs speech inflections, results may vary, good idea to experiment with this. Can also use indexes from different models.
+        - filter_radius (int, optional): Radius for smoothing pitch contours, not used by 'rmvpe'. Defaults to 3.
+        - protect (float, optional): Threshold for protecting against artifacts and pitch glitches, seems to rarely help much or be an issue. >=.5 is disabled.
+        - output_device (str, optional): The device for output, like 'cpu' or 'cuda:#'. Defaults to the model's device.
+        - output_volume (float, optional): Adjusts the output volume. Can be set to RVC.MATCH_ORIGINAL|RVC.NO_CHANGE|float. Defaults to RVC.MATCH_ORIGINAL.
+        - f0_spec (str | np.ndarray | None, optional): Custom f0 pitch contour as an array or a file path. Defaults to None.
+
+        Returns:
+        - torch.Tensor: The processed audio tensor.
+        """
 
         return self.run(audio,f0_up_key,f0_method,index_rate,filter_radius,protect,output_device,output_volume,f0_spec)
 
@@ -286,26 +303,43 @@ class RVC:
     def run(
         self,
         audio:str|torch.Tensor,
-        f0_up_key=0.,#12 semitones per octave
-        f0_method='rmvpe',
-        index_rate=.7,
-        filter_radius=3,
-        protect=.5,
-        output_device=None,
+        f0_up_key=0.,#The base pitch shift, 12 semitones per octave. Try to match the pitch range the RVC was trained on.
+        f0_method='rmvpe', #The pitch method.
+        index_rate=.7, #Increases the influence of the RVCs speech inflections, results may vary, good idea to experiment with this. Can also use indexes from different models.
+        filter_radius=3, #Helps smooth other pitch contours, not used by rmvpe.
+        protect=.5, #protect artifacts and rapid pitch glitches, seems to be almost never be an issue >=.5 is disabled
+        output_device=None, #like 'cpu' or 'cuda:#'
         output_volume=1,#RVC.MATCH_ORIGINAL
-        f0_spec:str|np.ndarray|None = None
+        f0_spec:str|np.ndarray|None = None #custom f0 pitch contour, as array or path.
     ):
+        """
+        Apply the RVC model to the audio.
+
+        Parameters:
+        - audio (str | torch.Tensor): The input audio file path or audio tensor.
+        - f0_up_key (float, optional): The base pitch shift in semitones (12 per octave). Defaults to 0.
+        - f0_method (str, optional): Method for pitch extraction. Defaults to 'rmvpe'.
+        - index_rate (float, optional):Increases the influence of the RVCs speech inflections, results may vary, good idea to experiment with this. Can also use indexes from different models.
+        - filter_radius (int, optional): Radius for smoothing pitch contours, not used by 'rmvpe'. Defaults to 3.
+        - protect (float, optional): Threshold for protecting against artifacts and pitch glitches, seems to rarely help much or be an issue. >=.5 is disabled.
+        - output_device (str, optional): The device for output, like 'cpu' or 'cuda:#'. Defaults to the model's device.
+        - output_volume (float, optional): Adjusts the output volume. Can be set to RVC.MATCH_ORIGINAL|RVC.NO_CHANGE|float. Defaults to RVC.MATCH_ORIGINAL.
+        - f0_spec (str | np.ndarray | None, optional): Custom f0 pitch contour as an array or a file path. Defaults to None.
+
+        Returns:
+        - torch.Tensor: The processed audio tensor.
+        """
 
         if isinstance(audio,str):
 
             audio,freq = load_torchaudio(audio,dtype='float32')
             #audio=audio.to(self.config.device,non_blocking=True)
             audio=ResampleCache.resample((freq,16000),audio.to(self.config.device,non_blocking=True),self.config.device)
-            print('Audio resampled to 16k')
+            #print('Audio resampled to 16k')
             am = audio.abs().max()
             if am > 1.1:
                 audio /= am
-        aif=audio.__dict__.get('frequency',None) #not sure if new object so checking first
+        aif=audio.__dict__.get('frequency',None) #It's possible to add new attributes to a tensor, in my own code base I use `frequency:int` to define the sample rate of the audio.
         if aif is not None:
             audio=ResampleCache.resample((aif,16000),audio.to(self.config.device,non_blocking=True),self.config.device)
             am = audio.abs().max()

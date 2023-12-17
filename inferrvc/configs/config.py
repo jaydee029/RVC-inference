@@ -132,7 +132,7 @@ class Config:
         #     strr = f.read().replace("3.7", "3.0")
         # with open("infer/modules/train/preprocess.py", "w") as f:
         #     f.write(strr)
-        print("Overwriting configs.json")#print("overwrite preprocess and configs.json")
+        logger.info("Overwriting configs.json for accelerator use.")#print("overwrite preprocess and configs.json")
 
     #I don't think this is used for inference but we will see.
     def device_config(self) -> tuple:
@@ -250,5 +250,5 @@ class Config:
                     )
                 except:
                     pass
-        print("is_half:%s, device:%s" % (self.is_half, self.device))
+        logger.info("Selecting device:%s, is_half:%s" % (self.device,self.is_half))
         return x_pad, x_query, x_center, x_max
