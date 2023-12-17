@@ -48,6 +48,7 @@ def load_hubert(config):
 
 class _ResampleCache(dict):
 
+    device = _devgp
 
     def __getitem__(self, item)->torchaudio.transforms.Resample:
         if item not in self:
@@ -57,7 +58,9 @@ class _ResampleCache(dict):
     def resample(self,fromto:tuple,audio:torch.Tensor,deviceto:str=_devgp)->torch.Tensor:
         if fromto[0]==fromto[1]:
             return audio.to(deviceto,non_blocking=True)
-        return self[fromto](audio).to(deviceto,non_blocking=True)
+        out=self[fromto](audio.to(_devgp,non_blocking=True)).to(deviceto,non_blocking=True)
+        out.frequency=fromto[1]
+        return out
 
 
 ResampleCache=_ResampleCache()
@@ -348,6 +351,8 @@ class RVC:
         if len(audio.shape)==1:
             audio=audio.unsqueeze(0)
         # else assume audio is already 16k
+        if output_volume is RVC.MATCH_ORIGINAL:
+            lufsorig = self._LOUD16K(audio)
 
         f0_up_key = int(f0_up_key) # does it need to be tho?
         times = [0, 0, 0]
@@ -367,18 +372,20 @@ class RVC:
             protect,
             f0_spec
         )
+        del audio
         if self.outputfreq is not None:
             audio_opt = ResampleCache.resample((self.tgt_sr,self.outputfreq), audio_opt,self.config.device)
         if output_volume is RVC.MATCH_ORIGINAL:
             lufsout=self._LOUDOUTPUT(audio_opt.unsqueeze(0))
-            lufsorig=self._LOUD16K(audio)
             audio_opt *= 10 ** ((lufsorig - lufsout) / 20)
         elif output_volume is not RVC.NO_CHANGE: #then it's a negative float lufs target
             lufsout = self._LOUDOUTPUT(audio_opt.unsqueeze(0))
             audio_opt *= 10 ** ((output_volume-lufsout) / 20)
         #note to self, referencing the memory block of a tensor without synchronizing, will cause generic compiled code like numpy to
         #start working prematurely unless you call cuda/cpu .synchronize() before running numpy/numba code on the tensor.
-        return audio_opt.to(output_device,non_blocking=not self.returnblocking) if output_device is not None else audio_opt.to(self.config.device,non_blocking=not self.returnblocking)
+        nout= audio_opt.to(output_device,non_blocking=not self.returnblocking) if output_device is not None else audio_opt.to(self.config.device,non_blocking=not self.returnblocking)
+        del audio_opt
+        return nout
 
 
 

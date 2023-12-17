@@ -307,6 +307,7 @@ class Pipeline(object):
         t = None
         t1 = ttime()
         audio_pad=torch.nn.functional.pad(audio, (self.t_pad, self.t_pad), mode="reflect")
+        del audio
         p_len = audio_pad.shape[1] // self.window
         if isinstance(f0_spec, str):
             try:
