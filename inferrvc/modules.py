@@ -49,12 +49,12 @@ def load_hubert(config):
 class _ResampleCache(dict):
 
 
-    def __getitem__(self, item):
+    def __getitem__(self, item)->torchaudio.transforms.Resample:
         if item not in self:
             self[item]=torchaudio.transforms.Resample(*item,lowpass_filter_width=32).to(_devgp,non_blocking=True)
         return super().__getitem__(item)
 
-    def resample(self,fromto:tuple,audio:torch.Tensor,deviceto:str=_devgp):
+    def resample(self,fromto:tuple,audio:torch.Tensor,deviceto:str=_devgp)->torch.Tensor:
         if fromto[0]==fromto[1]:
             return audio.to(deviceto,non_blocking=True)
         return self[fromto](audio).to(deviceto,non_blocking=True)
@@ -345,9 +345,11 @@ class RVC:
             am = audio.abs().max()
             if am > 1.1:
                 audio /= am
+        if len(audio.shape)==1:
+            audio=audio.unsqueeze(0)
         # else assume audio is already 16k
 
-        f0_up_key = int(f0_up_key)
+        f0_up_key = int(f0_up_key) # does it need to be tho?
         times = [0, 0, 0]
         audio_opt = self.pipeline.pipeline(
             self.hubert_model,
