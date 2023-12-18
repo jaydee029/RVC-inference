@@ -4,6 +4,8 @@
 ------
 GPT-4 tarafından sağlanan çeviriler.
 
+Bu proje, hafif, hızlı ve bellek açısından verimli bir API olup, v1/v2 RVC modellerini çalıştırır. Üretim ortamlarında kullanılmak üzere tasarlanmıştır ve mevcut kod tabanlarıyla uyumludur.
+RVC'yi bir boru hattı veya iş akışı aşamasına entegre etmeyi kolaylaştırır. Pip kullanarak yapılan kurulum hızlıdır ve Linux/Windows/Mac ile en yeni Python sürümleriyle uyumlu olmalıdır.
 ## Kurulum
 Python 3.11+ kullanıyorsanız, önce fairseq şubesini yükleyin, çünkü fairseq henüz 3.11 ile uyumlu değil.
 ```bash

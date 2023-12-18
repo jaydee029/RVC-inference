@@ -2,6 +2,9 @@
 [**English**](../README.md) | [**中文简体**](./README.ch.md) | [**日本語**](./README.ja.md) | [**한국어**](./README.ko.md) | [**Français**](./README.fr.md)| [**Türkçe**](./README.tr.md)
 ------
 翻译由 GPT-4 提供。
+
+本项目是一个轻量级、快速且内存高效的 API，运行 v1/v2 RVC 模型。它适用于生产环境，并与现有代码库兼容。
+它使得将 RVC 作为管道或工作流中的一个阶段进行集成变得简单。使用 pip 进行安装非常快捷，应与 Linux/Windows/Mac 以及最新的 python 版本兼容。
 ## 安装
 如果使用 Python 3.11 及以上版本，请首先安装 fairseq 分支，因为 fairseq 尚未兼容 3.11 版本。
 ```bash

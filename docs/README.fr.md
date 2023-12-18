@@ -4,6 +4,8 @@
 ------
 Traductions fournies par GPT-4.
 
+Ce projet est une API légère, rapide et efficace en termes de mémoire, qui exécute les modèles RVC v1/v2. Il est destiné à être utilisé dans des environnements de production et est compatible avec les bases de code existantes.
+Il facilite l'intégration de RVC comme une étape dans un pipeline ou un workflow. L'installation est rapide avec pip et devrait être compatible avec Linux/Windows/Mac et les dernières versions de Python.
 ## Installation
 Si vous utilisez Python 3.11+, installez d'abord le fork fairseq car fairseq n'est pas encore compatible avec 3.11.
 ```bash
