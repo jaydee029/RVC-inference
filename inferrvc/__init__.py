@@ -2,7 +2,9 @@
 
 __version__ = '1.0'
 
-import dotenv as _dotenv
-_dotenv.load_dotenv(override=False)
+import os as _os
+
+_os.environ.setdefault('RVC_OUTPUTFREQ','44100')
+_os.environ.setdefault('RVC_RETURNBLOCKING','False')
 
 from .modules import RVC,ResampleCache,download_models,load_torchaudio

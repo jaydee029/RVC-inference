@@ -1,5 +1,4 @@
 #the remaining dependencies
-python-dotenv
 numpy
 scipy
 torch #--index-url https://download.pytorch.org/whl/cu118

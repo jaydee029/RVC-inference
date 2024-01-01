@@ -423,4 +423,5 @@ def load_torchaudio(
     waveform = torch.from_numpy(waveform)
     if channels_first:
         waveform = waveform.t()
+    waveform.frequency=sample_rate
     return waveform, sample_rate
