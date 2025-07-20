@@ -425,3 +425,30 @@ def load_torchaudio(
         waveform = waveform.t()
     waveform.frequency=sample_rate
     return waveform, sample_rate
+
+def fetch_audio(
+    audio:bytes,
+    frame_offset: int = 0,
+    num_frames: int = -1,
+    normalize: bool = True,
+    channels_first: bool = True,
+    dtype=None, 
+)-> tuple[torch.Tensor, int]:
+    
+    if dtype is None:
+        if audio.format != "WAV" or normalize:
+            dtype = "float32"
+        elif audio.subtype not in _SUBTYPE2DTYPE:
+            raise ValueError(f"Unsupported subtype: {audio.subtype}")
+        else:
+            dtype = _SUBTYPE2DTYPE[audio.subtype]
+    
+    frames = audio._prepare_read(frame_offset, None, num_frames)
+    waveform = audio.read(frames, dtype, always_2d=True)
+    sample_rate = audio.samplerate
+
+    waveform = torch.from_numpy(waveform)
+    if channels_first:
+        waveform = waveform.t()
+    waveform.frequency=sample_rate
+    return waveform, sample_rate
