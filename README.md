@@ -15,9 +15,17 @@ pip install https://github.com/One-sixth/fairseq/archive/main.zip
 
 Pip install the repo like below and all dependencies will be installed automatically.
 ```bash
+
 pip uninstall inferrvc
 pip install https://github.com/jaydee029/RVC-inference/raw/main/dist/inferrvc-1.0-py3-none-any.whl --no-cache-dir
 ```
+
+```bash
+pip uninstall torch torchaudio torchvision
+pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu124
+```
+change the above pytorch installation if you have a non-gpu steup from [here](https://pytorch.org/get-started/previous-versions/)
+
 By default pypi installs the pytorch cpu build. To install for gpu using Nvidia or AMD, visit https://pytorch.org/get-started/locally/ and pip install `torch` and `torchaudio` with gpu _before_ installing this library.
 
 Support should be available for Python 3.8-3.12 but only 3.11 was tested. If there are any problems with installation or compatibility please open an issue and I'll push out fixes.
