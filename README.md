@@ -9,10 +9,12 @@ It makes integrating RVC as a stage in a pipeline or workflow easy. Installation
 Linux/Windows/Mac and the latest python versions.
 ## Install
 If using Python 3.11+ install the fairseq fork first as fairseq is not yet compatible with 3.11. (Will take a minute).
+(skip this if you are using the requiremnents.txt )
 ```bash
 pip install https://github.com/One-sixth/fairseq/archive/main.zip
 ```
 
+Follow from here
 Pip install the repo like below and all dependencies will be installed automatically.
 ```bash
 
