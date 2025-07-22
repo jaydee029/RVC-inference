@@ -26,6 +26,13 @@ pip install https://github.com/jaydee029/RVC-inference/raw/main/dist/inferrvc-1.
 pip uninstall torch torchaudio torchvision
 pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu124
 ```
+if the above command does not work or the package is still not available in the environment
+then 
+```bash
+git clone https://github.com/jaydee029/RVC-inference
+cd RVC-inference
+pip install -e .
+```
 change the above pytorch installation if you have a non-gpu steup from [here](https://pytorch.org/get-started/previous-versions/)
 
 By default pypi installs the pytorch cpu build. To install for gpu using Nvidia or AMD, visit https://pytorch.org/get-started/locally/ and pip install `torch` and `torchaudio` with gpu _before_ installing this library.
