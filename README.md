@@ -21,17 +21,17 @@ Pip install the repo like below and all dependencies will be installed automatic
 pip uninstall inferrvc
 pip install https://github.com/jaydee029/RVC-inference/raw/main/dist/inferrvc-1.0-py3-none-any.whl --no-cache-dir
 ```
-
-```bash
-pip uninstall torch torchaudio torchvision
-pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu124
-```
 if the above command does not work or the package is still not available in the environment
 then 
 ```bash
 git clone https://github.com/jaydee029/RVC-inference
 cd RVC-inference
 pip install -e .
+```
+if the torch version is equal to or above torch 2.6.0 follow this else skip
+```bash
+pip uninstall torch torchaudio torchvision
+pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu124
 ```
 change the above pytorch installation if you have a non-gpu steup from [here](https://pytorch.org/get-started/previous-versions/)
 
